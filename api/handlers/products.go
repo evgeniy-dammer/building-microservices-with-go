@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/evgeniy-dammer/building-microservices-with-go/data"
+	"github.com/evgeniy-dammer/building-microservices-with-go/api/data"
 )
 
 type Products struct {

@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/evgeniy-dammer/building-microservices-with-go/handlers"
+	"github.com/evgeniy-dammer/building-microservices-with-go/api/handlers"
 )
 
 func main() {
@@ -43,6 +43,11 @@ func main() {
 	sig := <-sigChan
 	l.Println("Received terminate, gracefull shutdown...", sig)
 
-	tc, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	tc, err := context.WithTimeout(context.Background(), 30*time.Second)
+
+	if err != nil {
+		os.Exit(1)
+	}
+
 	s.Shutdown(tc)
 }
