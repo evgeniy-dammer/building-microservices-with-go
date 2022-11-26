@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gorilla/mux"
+
 	"github.com/evgeniy-dammer/building-microservices-with-go/api/handlers"
 )
 
@@ -19,10 +21,21 @@ func main() {
 	ph := handlers.NewProducts(l)
 
 	//create a new server mux
-	sm := http.NewServeMux()
+	sm := mux.NewRouter()
 
-	//register the handlers
-	sm.Handle("/", ph)
+	//register GET router with handler
+	getRouter := sm.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/", ph.GetProducts)
+
+	//register POST router with handler
+	postRouter := sm.Methods(http.MethodPost).Subrouter()
+	postRouter.HandleFunc("/", ph.AddProduct)
+	postRouter.Use(ph.MiddlewareProductValidation)
+
+	//register PUT router with handler
+	putRouter := sm.Methods(http.MethodPut).Subrouter()
+	putRouter.HandleFunc("/{id:[0-9]+}", ph.UpdateProduct)
+	putRouter.Use(ph.MiddlewareProductValidation)
 
 	//create a new server
 	s := &http.Server{
