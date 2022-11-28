@@ -4,16 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"time"
+
+	"github.com/go-playground/validator/v10"
 )
 
 // Product model
 type Product struct {
 	ID          int     `json:"id"`
-	Name        string  `json:"name"`
+	Name        string  `json:"name" validate:"required"`
 	Description string  `json:"description"`
-	Price       float32 `json:"price"`
-	SKU         string  `json:"sku"`
+	Price       float32 `json:"price" validate:"gt=0,required"`
+	SKU         string  `json:"sku" validate:"required,sku"`
 	CreatedOn   string  `json:"-"`
 	UpdatedOn   string  `json:"-"`
 	DeletedOn   string  `json:"-"`
@@ -37,6 +40,29 @@ func (p *Product) FromJSON(r io.Reader) error {
 	e := json.NewDecoder(r)
 
 	return e.Decode(p)
+}
+
+// Validate validates a struct after deserializing JSON
+func (p *Product) Validate() error {
+	// create new validator
+	validate := validator.New()
+
+	// register custom SKU validation function
+	validate.RegisterValidation("sku", validateSKU)
+
+	// validate struct
+	return validate.Struct(p)
+}
+
+// validateSKU is custom function for SKU validation
+func validateSKU(fl validator.FieldLevel) bool {
+	// string format
+	reg := regexp.MustCompile("[a-z]+-[a-z]+-[a-z]+")
+
+	// searching a string with format below
+	maches := reg.FindAllString(fl.Field().String(), -1)
+
+	return len(maches) == 1
 }
 
 // GetProducts returns the list of products
