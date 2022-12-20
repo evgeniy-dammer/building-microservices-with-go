@@ -11,15 +11,37 @@ import (
 )
 
 // Product model
+// swagger:model
 type Product struct {
-	ID          int     `json:"id"`
-	Name        string  `json:"name" validate:"required"`
-	Description string  `json:"description"`
-	Price       float32 `json:"price" validate:"gt=0,required"`
-	SKU         string  `json:"sku" validate:"required,sku"`
-	CreatedOn   string  `json:"-"`
-	UpdatedOn   string  `json:"-"`
-	DeletedOn   string  `json:"-"`
+	// The id for a product
+	// required: true
+	// min: 1
+	ID int `json:"id"`
+
+	// The name for a product
+	// required: true
+	Name string `json:"name" validate:"required"`
+
+	// The description for a product
+	Description string `json:"description"`
+
+	// The price for a product
+	// required: true
+	Price float32 `json:"price" validate:"gt=0,required"`
+
+	// The SKU for a product
+	// required: true
+	// example: SKU0001
+	SKU string `json:"sku" validate:"required,sku"`
+
+	// The date when the product was created
+	CreatedOn string `json:"-"`
+
+	// The date when the product was updated
+	UpdatedOn string `json:"-"`
+
+	// The date when the product was deleted
+	DeletedOn string `json:"-"`
 }
 
 // ErrProductNotFound error product not found
@@ -93,6 +115,21 @@ func UpdateProduct(id int, p *Product) error {
 	// update product in datastore
 	p.ID = id
 	productList[index] = p
+
+	return nil
+}
+
+// DeleteProduct deletes product from datastore by id
+func DeleteProduct(id int) error {
+	// find product by id
+	index, err := findProduct(id)
+
+	if err != nil {
+		return err
+	}
+
+	// delete product from datastore
+	productList = append(productList[:index], productList[index+1:]...)
 
 	return nil
 }

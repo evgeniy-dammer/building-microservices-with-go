@@ -1,15 +1,58 @@
+// Package classification of Product API
+//
+// Documentation for Product API
+//
+//		Schemes: http
+//		BasePath: /
+//		Version: 1.0.0
+//
+//		Consumes:
+//		- application/json
+//
+//	 Produces:
+//	 - application/json
+//
+// swagger:meta
 package handlers
 
 import (
 	"context"
 	"fmt"
+	"github.com/evgeniy-dammer/building-microservices-with-go/api/data"
 	"log"
 	"net/http"
-	"strconv"
-
-	"github.com/evgeniy-dammer/building-microservices-with-go/api/data"
-	"github.com/gorilla/mux"
 )
+
+// productsResponseWrapper is a wrapper for a list of products returns in the response
+// swagger:response productsResponse
+type productsResponseWrapper struct {
+	// All products in the system
+	// in: body
+	Body []data.Product
+}
+
+// productsRequestWrapper is a wrapper for a product in POST request
+// swagger:parameters productsRequest
+type productsRequestWrapper struct {
+	// A product sending in a POST request
+	// in: query
+	Body data.Product
+}
+
+// productsNoContentWrapper is a wrapper for no content returns in the response
+// swagger:response noContent
+type productsNoContentWrapper struct {
+	// no content inside
+}
+
+// productIDParameterWrapper is a wrapper for id parameter in path
+// swagger:parameters deleteProduct updateProduct
+type productIDParameterWrapper struct {
+	// The id of the product to update or delete from database
+	// in: path
+	// required: true
+	ID int `json:"id"`
+}
 
 // Products is a http.Handler
 type Products struct {
@@ -17,83 +60,11 @@ type Products struct {
 }
 
 // KeyProduct
-type KeyProduct struct {
-}
+type KeyProduct struct{}
 
 // NewProducts creates a new products handler with a logger
 func NewProducts(l *log.Logger) *Products {
 	return &Products{l}
-}
-
-// getProducts returns the products from data sourse
-func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
-	p.l.Println("Handle GET products")
-
-	// fetch the products from datastore
-	lp := data.GetProducts()
-
-	// serialize the list of poducts to JSON
-	err := lp.ToJSON(rw)
-
-	if err != nil {
-		http.Error(rw, "Unable to encode JSON", http.StatusInternalServerError)
-	}
-}
-
-// addProduct insert new product to the datastore
-func (p *Products) AddProduct(rw http.ResponseWriter, r *http.Request) {
-	p.l.Println("Handle POST product")
-
-	// create new product object from request context
-	product := r.Context().Value(KeyProduct{}).(data.Product)
-
-	// insert an object to the datastore
-	err := data.InsertProduct(&product)
-
-	if err != nil {
-		http.Error(rw, "Unable to add product", http.StatusInternalServerError)
-		return
-	}
-
-	// if all is OK
-	rw.WriteHeader(http.StatusOK)
-}
-
-// updateProduct updates product by id
-func (p *Products) UpdateProduct(rw http.ResponseWriter, r *http.Request) {
-	p.l.Println("Handle PUT product")
-
-	// extract id from path
-	vars := mux.Vars(r)
-
-	// convert string id ti int
-	id, err := strconv.Atoi(vars["id"])
-
-	if err != nil {
-		http.Error(rw, "Unable to convert ID", http.StatusBadRequest)
-		return
-	}
-
-	// create new product object from request context
-	product := r.Context().Value(KeyProduct{}).(data.Product)
-
-	// updates an object to the datastore
-	err = data.UpdateProduct(id, &product)
-
-	// if product not founded
-	if err == data.ErrProductNotFound {
-		http.Error(rw, "Product not found", http.StatusNotFound)
-		return
-	}
-
-	// if another error
-	if err != nil {
-		http.Error(rw, "Unable to update product", http.StatusInternalServerError)
-		return
-	}
-
-	// if all is OK
-	rw.WriteHeader(http.StatusOK)
 }
 
 // MiddlewareProductValidation validates the product in the requests and calls next if ok
