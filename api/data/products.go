@@ -1,14 +1,11 @@
 package data
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"regexp"
-	"time"
-
-	"github.com/go-playground/validator/v10"
 )
+
+// ErrProductNotFound error product not found
+var ErrProductNotFound = fmt.Errorf("product not found")
 
 // Product model
 // swagger:model
@@ -20,154 +17,104 @@ type Product struct {
 
 	// The name for a product
 	// required: true
+	// max length: 255
 	Name string `json:"name" validate:"required"`
 
 	// The description for a product
+	// required: false
+	// max length: 10000
 	Description string `json:"description"`
 
 	// The price for a product
 	// required: true
+	// min: 0.01
 	Price float32 `json:"price" validate:"gt=0,required"`
 
 	// The SKU for a product
 	// required: true
-	// example: SKU0001
+	// pattern: [a-z]+-[a-z]+-[a-z]+
 	SKU string `json:"sku" validate:"required,sku"`
-
-	// The date when the product was created
-	CreatedOn string `json:"-"`
-
-	// The date when the product was updated
-	UpdatedOn string `json:"-"`
-
-	// The date when the product was deleted
-	DeletedOn string `json:"-"`
 }
 
-// ErrProductNotFound error product not found
-var ErrProductNotFound = fmt.Errorf("Product not found")
-
-// Products model
+// Products defines a slice of Product
 type Products []*Product
 
-// ToJSON encodes an object to a JSON string
-func (p *Products) ToJSON(w io.Writer) error {
-	e := json.NewEncoder(w)
-
-	return e.Encode(p)
-}
-
-// FromJSON decodes a JSON string to an object
-func (p *Product) FromJSON(r io.Reader) error {
-	e := json.NewDecoder(r)
-
-	return e.Decode(p)
-}
-
-// Validate validates a struct after deserializing JSON
-func (p *Product) Validate() error {
-	// create new validator
-	validate := validator.New()
-
-	// register custom SKU validation function
-	validate.RegisterValidation("sku", validateSKU)
-
-	// validate struct
-	return validate.Struct(p)
-}
-
-// validateSKU is custom function for SKU validation
-func validateSKU(fl validator.FieldLevel) bool {
-	// string format
-	reg := regexp.MustCompile("[a-z]+-[a-z]+-[a-z]+")
-
-	// searching a string with format below
-	maches := reg.FindAllString(fl.Field().String(), -1)
-
-	return len(maches) == 1
-}
-
-// GetProducts returns the list of products
+// GetProducts returns all products from the database
 func GetProducts() Products {
 	return productList
 }
 
-// InsertProduct inserts product into datastore
-func InsertProduct(p *Product) error {
-	// create next product id
-	p.ID = getNextId()
-
-	// insert new product in datastore
-	productList = append(productList, p)
-
-	return nil
-}
-
-// UpdateProduct updates product into datastore by id
-func UpdateProduct(id int, p *Product) error {
-	// find product by id
-	index, err := findProduct(id)
-
-	if err != nil {
-		return err
+// GetProductById returns a single product which matches the id from the database.
+func GetProductById(id int) (*Product, error) {
+	i := findIndexByProductID(id)
+	if id == -1 {
+		return nil, ErrProductNotFound
 	}
 
-	// update product in datastore
-	p.ID = id
-	productList[index] = p
+	return productList[i], nil
+}
+
+// UpdateProduct replaces a product in the database with the given
+// item.
+// If a product with the given id does not exist in the database
+// this function returns a ProductNotFound error
+func UpdateProduct(p Product) error {
+	i := findIndexByProductID(p.ID)
+	if i == -1 {
+		return ErrProductNotFound
+	}
+
+	// update the product in the DB
+	productList[i] = &p
 
 	return nil
 }
 
-// DeleteProduct deletes product from datastore by id
+// AddProduct adds a new product to the database
+func AddProduct(p Product) {
+	// get the next id in sequence
+	maxID := productList[len(productList)-1].ID
+	p.ID = maxID + 1
+	productList = append(productList, &p)
+}
+
+// DeleteProduct deletes a product from the database
 func DeleteProduct(id int) error {
-	// find product by id
-	index, err := findProduct(id)
-
-	if err != nil {
-		return err
+	i := findIndexByProductID(id)
+	if i == -1 {
+		return ErrProductNotFound
 	}
 
-	// delete product from datastore
-	productList = append(productList[:index], productList[index+1:]...)
+	productList = append(productList[:i], productList[i+1])
 
 	return nil
 }
 
-// findProduct searchs product in datastore
-func findProduct(id int) (int, error) {
+// findIndex finds the index of a product in the database
+// returns -1 when no product can be found
+func findIndexByProductID(id int) int {
 	for i, p := range productList {
 		if p.ID == id {
-			return i, nil
+			return i
 		}
 	}
 
-	return -1, ErrProductNotFound
+	return -1
 }
 
-// getNextId returns next product id from datastore
-func getNextId() int {
-	return productList[len(productList)-1].ID + 1
-}
-
-// productList is the fixed list of products
 var productList = []*Product{
 	{
 		ID:          1,
 		Name:        "Latte",
-		Description: "Frothly milky coffee",
+		Description: "Frothy milky coffee",
 		Price:       2.45,
-		SKU:         "abc123",
-		CreatedOn:   time.Now().UTC().String(),
-		UpdatedOn:   time.Now().UTC().String(),
+		SKU:         "abc323",
 	},
 	{
 		ID:          2,
 		Name:        "Espresso",
 		Description: "Short and strong coffee without milk",
 		Price:       1.99,
-		SKU:         "cba321",
-		CreatedOn:   time.Now().UTC().String(),
-		UpdatedOn:   time.Now().UTC().String(),
+		SKU:         "fjd34",
 	},
 }

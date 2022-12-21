@@ -5,27 +5,19 @@ import (
 	"net/http"
 )
 
-// swagger:route POST /products products addProduct
-// Inserts a new product in database
-// responses:
+// swagger:route POST /products products createProduct
+// Create a new product
 //
-//	201: productsRequest
+// responses:
+//	200: productResponse
+//  422: errorValidation
+//  501: errorResponse
 
 // AddProduct insert new product to the datastore
 func (p *Products) AddProduct(rw http.ResponseWriter, r *http.Request) {
-	p.l.Println("Handle POST product")
+	// fetch the product from the context
+	prod := r.Context().Value(KeyProduct{}).(data.Product)
 
-	// create new product object from request context
-	product := r.Context().Value(KeyProduct{}).(data.Product)
-
-	// insert an object to the datastore
-	err := data.InsertProduct(&product)
-
-	if err != nil {
-		http.Error(rw, "Unable to add product", http.StatusInternalServerError)
-		return
-	}
-
-	// if all is OK
-	rw.WriteHeader(http.StatusCreated)
+	p.l.Printf("[DEBUG] Inserting product: %#v\n", prod)
+	data.AddProduct(prod)
 }

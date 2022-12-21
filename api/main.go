@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/evgeniy-dammer/building-microservices-with-go/api/data"
 	"log"
 	"net/http"
 	"os"
@@ -16,16 +17,17 @@ import (
 
 func main() {
 	l := log.New(os.Stdout, "api", log.LstdFlags)
-
+	v := data.NewValidation()
 	//create the handlers
-	ph := handlers.NewProducts(l)
+	ph := handlers.NewProducts(l, v)
 
 	//create a new server mux
 	sm := mux.NewRouter()
 
 	//register GET router with handler
 	getRouter := sm.Methods(http.MethodGet).Subrouter()
-	getRouter.HandleFunc("/products", ph.GetProducts)
+	getRouter.HandleFunc("/products", ph.ListAll)
+	getRouter.HandleFunc("/products/{id:[0-9]+}", ph.ListSingle)
 
 	//register POST router with handler
 	postRouter := sm.Methods(http.MethodPost).Subrouter()
@@ -34,7 +36,7 @@ func main() {
 
 	//register PUT router with handler
 	putRouter := sm.Methods(http.MethodPut).Subrouter()
-	putRouter.HandleFunc("/products/{id:[0-9]+}", ph.UpdateProduct)
+	putRouter.HandleFunc("/products/{id:[0-9]+}", ph.Update)
 	putRouter.Use(ph.MiddlewareProductValidation)
 
 	//register DELETE router with handler

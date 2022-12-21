@@ -1,101 +1,55 @@
-// Package classification of Product API
-//
-// Documentation for Product API
-//
-//		Schemes: http
-//		BasePath: /
-//		Version: 1.0.0
-//
-//		Consumes:
-//		- application/json
-//
-//	 Produces:
-//	 - application/json
-//
-// swagger:meta
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"github.com/evgeniy-dammer/building-microservices-with-go/api/data"
+	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"strconv"
 )
 
-// productsResponseWrapper is a wrapper for a list of products returns in the response
-// swagger:response productsResponse
-type productsResponseWrapper struct {
-	// All products in the system
-	// in: body
-	Body []data.Product
-}
-
-// productsRequestWrapper is a wrapper for a product in POST request
-// swagger:parameters productsRequest
-type productsRequestWrapper struct {
-	// A product sending in a POST request
-	// in: query
-	Body data.Product
-}
-
-// productsNoContentWrapper is a wrapper for no content returns in the response
-// swagger:response noContent
-type productsNoContentWrapper struct {
-	// no content inside
-}
-
-// productIDParameterWrapper is a wrapper for id parameter in path
-// swagger:parameters deleteProduct updateProduct
-type productIDParameterWrapper struct {
-	// The id of the product to update or delete from database
-	// in: path
-	// required: true
-	ID int `json:"id"`
-}
-
-// Products is a http.Handler
-type Products struct {
-	l *log.Logger
-}
-
-// KeyProduct
+// KeyProduct is a key used for the Product object in the context
 type KeyProduct struct{}
 
-// NewProducts creates a new products handler with a logger
-func NewProducts(l *log.Logger) *Products {
-	return &Products{l}
+// Products handler for getting and updating products
+type Products struct {
+	l *log.Logger
+	v *data.Validation
 }
 
-// MiddlewareProductValidation validates the product in the requests and calls next if ok
-func (p Products) MiddlewareProductValidation(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		// create new product object
-		product := data.Product{}
+// NewProducts returns a new products handler with the given logger
+func NewProducts(l *log.Logger, v *data.Validation) *Products {
+	return &Products{l, v}
+}
 
-		// deserialize JSON string to an object
-		err := product.FromJSON(r.Body)
+// ErrInvalidProductPath is an error message when the product path is not valid
+var ErrInvalidProductPath = fmt.Errorf("invalid Path, path should be /products/[id]")
 
-		if err != nil {
-			p.l.Println("[ERROR] deserializing product", err)
-			http.Error(rw, "Error reading product", http.StatusBadRequest)
-			return
-		}
+// GenericError is a generic error message returned by a server
+type GenericError struct {
+	Message string `json:"message"`
+}
 
-		// validate product
-		err = product.Validate()
+// ValidationError is a collection of validation error messages
+type ValidationError struct {
+	Messages []string `json:"messages"`
+}
 
-		if err != nil {
-			p.l.Println("[ERROR] validating product", err)
-			http.Error(rw, fmt.Sprintf("Error validating product: %s", err), http.StatusBadRequest)
-			return
-		}
+// getProductID returns the product ID from the URL
+// Panics if it cannot convert the id into an integer
+// this should never happen as the router ensures that
+// this is a valid number
+func getProductID(r *http.Request) int {
+	// parse the product id from the url
+	vars := mux.Vars(r)
 
-		// add the product to the context
-		ctx := context.WithValue(r.Context(), KeyProduct{}, product)
-		req := r.WithContext(ctx)
+	// convert the id into an integer and return
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		// should never happen
+		panic(err)
+	}
 
-		// call the next handler, witch can be another middleware in the chain, or the final handler
-		next.ServeHTTP(rw, req)
-	})
+	return id
 }
