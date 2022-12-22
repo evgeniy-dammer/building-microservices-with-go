@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/evgeniy-dammer/building-microservices-with-go/api/data"
+	gohandlers "github.com/gorilla/handlers"
 	"log"
 	"net/http"
 	"os"
@@ -18,6 +19,7 @@ import (
 func main() {
 	l := log.New(os.Stdout, "api", log.LstdFlags)
 	v := data.NewValidation()
+
 	//create the handlers
 	ph := handlers.NewProducts(l, v)
 
@@ -49,10 +51,14 @@ func main() {
 	getRouter.Handle("/docs", sh)
 	getRouter.Handle("/swagger.yaml", http.FileServer(http.Dir("./")))
 
+	//CORS
+	ch := gohandlers.CORS(gohandlers.AllowedOrigins([]string{"http://localhost:3000"}))
+
 	//create a new server
 	s := &http.Server{
 		Addr:         ":9090",
-		Handler:      sm,
+		ErrorLog:     l,
+		Handler:      ch(sm),
 		IdleTimeout:  120 * time.Second,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
