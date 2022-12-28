@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"github.com/evgeniy-dammer/building-microservices-with-go/api/data"
+	protos "github.com/evgeniy-dammer/building-microservices-with-go/currency/protos/currency"
 	gohandlers "github.com/gorilla/handlers"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net/http"
 	"os"
@@ -20,8 +23,18 @@ func main() {
 	l := log.New(os.Stdout, "api", log.LstdFlags)
 	v := data.NewValidation()
 
+	// create grpc client connection
+	conn, err := grpc.Dial("localhost:9092", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	//create service client
+	cc := protos.NewCurrencyClient(conn)
+
 	//create the handlers
-	ph := handlers.NewProducts(l, v)
+	ph := handlers.NewProducts(l, v, cc)
 
 	//create a new server mux
 	sm := mux.NewRouter()
@@ -82,11 +95,7 @@ func main() {
 	sig := <-sigChan
 	l.Println("Received terminate, gracefull shutdown...", sig)
 
-	tc, err := context.WithTimeout(context.Background(), 30*time.Second)
-
-	if err != nil {
-		os.Exit(1)
-	}
+	tc, _ := context.WithTimeout(context.Background(), 30*time.Second)
 
 	s.Shutdown(tc)
 }
