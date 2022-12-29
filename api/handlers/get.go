@@ -11,9 +11,9 @@ import (
 // Return a list of products from the database
 // responses:
 //	200: productsResponse
-
+	
 // ListAll handles GET requests and returns all current products
-func (p *Products) ListAll(rw http.ResponseWriter, r *http.Request) {
+func (p *Products) ListAll(rw http.ResponseWriter, _ *http.Request) {
 	p.l.Println("[DEBUG] get all records")
 
 	rw.Header().Add("Content-Type", "application/json")
@@ -43,7 +43,6 @@ func (p *Products) ListSingle(rw http.ResponseWriter, r *http.Request) {
 
 	switch err {
 	case nil:
-
 	case data.ErrProductNotFound:
 		p.l.Println("[ERROR] fetching product", err)
 
