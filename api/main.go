@@ -5,9 +5,9 @@ import (
 	"github.com/evgeniy-dammer/building-microservices-with-go/api/data"
 	protos "github.com/evgeniy-dammer/building-microservices-with-go/currency/protos/currency"
 	gohandlers "github.com/gorilla/handlers"
+	"github.com/hashicorp/go-hclog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,10 +17,15 @@ import (
 	"github.com/evgeniy-dammer/building-microservices-with-go/api/handlers"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/gorilla/mux"
+	"github.com/nicholasjackson/env"
 )
 
+var bindAddress = env.String("BIND_ADDRESS", false, ":9090", "Bind address for the server")
+
 func main() {
-	l := log.New(os.Stdout, "api", log.LstdFlags)
+	env.Parse()
+
+	l := hclog.Default()
 	v := data.NewValidation()
 
 	// create grpc client connection
@@ -33,16 +38,19 @@ func main() {
 	//create service client
 	cc := protos.NewCurrencyClient(conn)
 
+	// create database instance
+	db := data.NewProductsDB(cc, l)
+
 	//create the handlers
-	ph := handlers.NewProducts(l, v, cc)
+	ph := handlers.NewProducts(l, v, db)
 
 	//create a new server mux
 	sm := mux.NewRouter()
 
 	//register GET router with handler
 	getRouter := sm.Methods(http.MethodGet).Subrouter()
-	getRouter.HandleFunc("/products", ph.ListAll)
-	getRouter.HandleFunc("/products/{id:[0-9]+}", ph.ListSingle)
+	getRouter.HandleFunc("/products", ph.ListAll).Queries("currency", "{[A-Z]{3}}")
+	getRouter.HandleFunc("/products/{id:[0-9]+}", ph.ListSingle).Queries("currency", "{[A-Z]{3}}")
 
 	//register POST router with handler
 	postRouter := sm.Methods(http.MethodPost).Subrouter()
@@ -69,21 +77,21 @@ func main() {
 
 	//create a new server
 	s := &http.Server{
-		Addr:         ":9090",
-		ErrorLog:     l,
-		Handler:      ch(sm),
-		IdleTimeout:  120 * time.Second,
-		ReadTimeout:  1 * time.Second,
-		WriteTimeout: 1 * time.Second,
+		Addr:         *bindAddress,                                     // configure the bind address
+		Handler:      ch(sm),                                           // set the default handler
+		ErrorLog:     l.StandardLogger(&hclog.StandardLoggerOptions{}), // set the logger for the server
+		ReadTimeout:  5 * time.Second,                                  // max time to read request from the client
+		WriteTimeout: 10 * time.Second,                                 // max time to write response to the client
+		IdleTimeout:  120 * time.Second,                                // max time for connections using TCP Keep-Alive
 	}
 
 	//start the server
 	go func() {
-		l.Println("Server started...")
+		l.Info("Starting server on port 9090")
 		err := s.ListenAndServe()
 
 		if err != nil {
-			l.Fatal(err)
+			l.Error("Error starting server", "error", err)
 		}
 	}()
 
@@ -93,7 +101,7 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGTERM)
 
 	sig := <-sigChan
-	l.Println("Received terminate, gracefull shutdown...", sig)
+	l.Info("Received terminate, gracefull shutdown...", "signal", sig)
 
 	tc, _ := context.WithTimeout(context.Background(), 30*time.Second)
 

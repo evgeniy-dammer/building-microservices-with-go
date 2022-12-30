@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/evgeniy-dammer/building-microservices-with-go/currency/data"
 	protos "github.com/evgeniy-dammer/building-microservices-with-go/currency/protos/currency"
 	"github.com/evgeniy-dammer/building-microservices-with-go/currency/server"
 	"github.com/hashicorp/go-hclog"
@@ -13,11 +14,19 @@ import (
 func main() {
 	log := hclog.Default()
 
+	// fetching rates
+	rates, err := data.NewExchangeRate(log)
+
+	if err != nil {
+		log.Error("Unable to fetch rates", "error", err)
+		os.Exit(1)
+	}
+
 	// create a new gRPC server, use WithInsecure to allow http connections
 	gs := grpc.NewServer()
 
 	// create an instance of the Currency server
-	cs := grpcserver.NewCurrency(log)
+	cs := grpcserver.NewCurrency(rates, log)
 
 	// register the currency server
 	protos.RegisterCurrencyServer(gs, cs)

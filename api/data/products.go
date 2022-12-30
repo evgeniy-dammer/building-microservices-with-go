@@ -1,7 +1,10 @@
 package data
 
 import (
+	"context"
 	"fmt"
+	protos "github.com/evgeniy-dammer/building-microservices-with-go/currency/protos/currency"
+	"github.com/hashicorp/go-hclog"
 )
 
 // ErrProductNotFound error product not found
@@ -28,7 +31,7 @@ type Product struct {
 	// The price for a product
 	// required: true
 	// min: 0.01
-	Price float32 `json:"price" validate:"gt=0,required"`
+	Price float64 `json:"price" validate:"gt=0,required"`
 
 	// The SKU for a product
 	// required: true
@@ -39,47 +42,106 @@ type Product struct {
 // Products defines a slice of Product
 type Products []*Product
 
+// ProductsDB
+type ProductsDB struct {
+	currency protos.CurrencyClient
+	log      hclog.Logger
+}
+
+// NewProductsDB
+func NewProductsDB(c protos.CurrencyClient, l hclog.Logger) *ProductsDB {
+	return &ProductsDB{currency: c, log: l}
+}
+
 // GetProducts returns all products from the database
-func GetProducts() Products {
-	return productList
+func (p *ProductsDB) GetProducts(currency string) (Products, error) {
+	if currency == "" {
+		return productList, nil
+	}
+
+	rate, err := p.getRate(currency)
+
+	if err != nil {
+		p.log.Error("[ERROR] fetching exchange rate", "currency", currency, "error", err)
+
+		return nil, err
+	}
+
+	pr := Products{}
+
+	for _, p := range productList {
+		np := *p
+		np.Price = np.Price * rate
+
+		pr = append(pr, &np)
+	}
+
+	return pr, nil
 }
 
 // GetProductById returns a single product which matches the id from the database.
-func GetProductById(id int) (*Product, error) {
+func (p *ProductsDB) GetProductById(id int, currency string) (*Product, error) {
 	i := findIndexByProductID(id)
 	if id == -1 {
 		return nil, ErrProductNotFound
 	}
 
-	return productList[i], nil
+	if currency == "" {
+		return productList[i], nil
+	}
+
+	rate, err := p.getRate(currency)
+
+	if err != nil {
+		p.log.Error("[ERROR] fetching exchange rate", "currency", currency, "error", err)
+
+		return nil, err
+	}
+
+	np := *productList[i]
+	np.Price = np.Price * rate
+
+	return &np, nil
+}
+
+func (p *ProductsDB) getRate(destination string) (float64, error) {
+	// get the exchange rate
+	rr := protos.RateRequest{
+		Base:        protos.Currencies(protos.Currencies_value["EUR"]),
+		Destination: protos.Currencies(protos.Currencies_value[destination]),
+	}
+
+	resp, err := p.currency.GetRate(context.Background(), &rr)
+
+	return resp.Rate, err
 }
 
 // UpdateProduct replaces a product in the database with the given
 // item.
 // If a product with the given id does not exist in the database
 // this function returns a ProductNotFound error
-func UpdateProduct(p Product) error {
-	i := findIndexByProductID(p.ID)
+func (p *ProductsDB) UpdateProduct(prod Product) error {
+	i := findIndexByProductID(prod.ID)
 	if i == -1 {
 		return ErrProductNotFound
 	}
 
 	// update the product in the DB
-	productList[i] = &p
+	productList[i] = &prod
 
 	return nil
 }
 
 // AddProduct adds a new product to the database
-func AddProduct(p Product) {
+func (p *ProductsDB) AddProduct(prod Product) {
 	// get the next id in sequence
 	maxID := productList[len(productList)-1].ID
-	p.ID = maxID + 1
-	productList = append(productList, &p)
+	prod.ID = maxID + 1
+	productList = append(productList, &prod)
 }
 
 // DeleteProduct deletes a product from the database
-func DeleteProduct(id int) error {
+func (p *ProductsDB) DeleteProduct(id int) error {
 	i := findIndexByProductID(id)
 	if i == -1 {
 		return ErrProductNotFound
