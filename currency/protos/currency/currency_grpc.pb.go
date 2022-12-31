@@ -24,7 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 type CurrencyClient interface {
 	// GetRate returns the exchange rate for the two provided currency codes
 	GetRate(ctx context.Context, in *RateRequest, opts ...grpc.CallOption) (*RateResponse, error)
-	// SubscribeRates is a bi-directional streaming subscriber
+	// SubscribeRates allows a client to subscribe for changes in an exchange rate when the rate changes a response will be sent
 	SubscribeRates(ctx context.Context, opts ...grpc.CallOption) (Currency_SubscribeRatesClient, error)
 }
 
@@ -82,7 +82,7 @@ func (x *currencySubscribeRatesClient) Recv() (*RateResponse, error) {
 type CurrencyServer interface {
 	// GetRate returns the exchange rate for the two provided currency codes
 	GetRate(context.Context, *RateRequest) (*RateResponse, error)
-	// SubscribeRates is a bi-directional streaming subscriber
+	// SubscribeRates allows a client to subscribe for changes in an exchange rate when the rate changes a response will be sent
 	SubscribeRates(Currency_SubscribeRatesServer) error
 	mustEmbedUnimplementedCurrencyServer()
 }

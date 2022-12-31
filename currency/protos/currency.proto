@@ -23,8 +23,12 @@ message RateRequest {
 
 // RateResponse is the response from a GetRate call
 message RateResponse {
+  // Base is the base currency code for the rate
+  Currencies Base = 1;
+  // Destination is the destination currency code for the rate
+  Currencies Destination = 2;
   // Rate number and can be used to convert between the two currencies specified in the request.
-  double Rate = 1;
+  double Rate = 3;
 }
 
 // Currencies is an enum which represents the allowed currencies for the API
