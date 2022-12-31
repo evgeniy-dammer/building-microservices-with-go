@@ -55,7 +55,7 @@ func (e *ExchangeRate) GetRate(base, dest string) (float64, error) {
 // GetRates fetches exchange rates from European Bank API
 func (e *ExchangeRate) GetRates() error {
 	// request to European Bank API for fetching exchange rates
-	resp, err := http.DefaultClient.Get("https://ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml")
+	resp, err := http.DefaultClient.Get("https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml")
 
 	if err != nil {
 		return err
