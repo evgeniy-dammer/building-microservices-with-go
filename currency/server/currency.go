@@ -5,6 +5,8 @@ import (
 	"github.com/evgeniy-dammer/building-microservices-with-go/currency/data"
 	protos "github.com/evgeniy-dammer/building-microservices-with-go/currency/protos/currency"
 	"github.com/hashicorp/go-hclog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"io"
 	"time"
 )
@@ -53,6 +55,22 @@ func (c *Currency) handleUpdate() {
 // GetRate implements the CurrencyServer GetRate method and returns the currency exchange rate for the two given currencies.
 func (c *Currency) GetRate(ctx context.Context, request *protos.RateRequest) (*protos.RateResponse, error) {
 	c.log.Info("Handle GetRate", "base", request.GetBase(), "destination", request.GetDestination())
+
+	if request.Base == request.Destination {
+		err := status.Newf(
+			codes.InvalidArgument,
+			"base currency %s can not be same as the destination currency %s",
+			request.Base.String(), request.Destination.String(),
+		)
+
+		err, wde := err.WithDetails(request)
+
+		if wde != nil {
+			return nil, wde
+		}
+
+		return nil, err.Err()
+	}
 
 	rate, err := c.rates.GetRate(request.GetBase().String(), request.GetDestination().String())
 

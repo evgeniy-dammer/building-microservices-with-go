@@ -5,6 +5,8 @@ import (
 	"fmt"
 	protos "github.com/evgeniy-dammer/building-microservices-with-go/currency/protos/currency"
 	"github.com/hashicorp/go-hclog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // ErrProductNotFound error product not found
@@ -144,6 +146,22 @@ func (p *ProductsDB) getRate(destination string) (float64, error) {
 
 	// get initial rate
 	resp, err := p.currency.GetRate(context.Background(), rr)
+	if err != nil {
+		if s, ok := status.FromError(err); !ok {
+			md := s.Details()[0].(*protos.RateRequest)
+
+			if s.Code() == codes.InvalidArgument {
+				return -1, fmt.Errorf("unable to get rate from currency server, destination and base currency can not be the same: base %s, dest %s",
+					md.Base.String(), md.Destination.String(),
+				)
+			}
+
+			return -1, fmt.Errorf("unable to get rate from currency server: base %s, dest %s", md.Base.String(), md.Destination.String())
+		}
+
+		return -1, err
+	}
+
 	// update cache
 	p.rates[destination] = float64(resp.Rate)
 	// subscribe for updates
