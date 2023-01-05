@@ -72,6 +72,16 @@ func (p *ProductsDB) handleUpdates() {
 
 	for {
 		rr, err := sub.RecV()
+
+		if grpcError := rr.GetError(); grpcError != nil {
+			p.log.Error("Error subscribing for rates", "error", grpcError)
+			continue
+		}
+
+		if resp := rr.GetRateResponse(); resp != nil {
+
+		}
+
 		if err != nil {
 			p.log.Error("Error receiving message", "error", err)
 			return
